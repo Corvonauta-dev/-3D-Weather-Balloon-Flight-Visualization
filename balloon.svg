@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150">
+  <defs>
+    <radialGradient id="balloonGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#f0f0f0"/>
+      <stop offset="100%" stop-color="#d4d4d4"/>
+    </radialGradient>
+  </defs>
+  <!-- Main Balloon -->
+  <circle cx="50" cy="50" r="45" fill="url(#balloonGrad)" stroke="#a3a3a3" stroke-width="1.5"/>
+  <!-- Knot/Base -->
+  <polygon points="45,93 55,93 50,105" fill="#d4d4d4" stroke="#a3a3a3" stroke-width="1"/>
+  <!-- Strings -->
+  <line x1="48" y1="105" x2="35" y2="135" stroke="#ffffff" stroke-width="1.5"/>
+  <line x1="50" y1="105" x2="50" y2="135" stroke="#ffffff" stroke-width="1.5"/>
+  <line x1="52" y1="105" x2="65" y2="135" stroke="#ffffff" stroke-width="1.5"/>
+  <!-- Payload Box -->
+  <rect x="30" y="135" width="40" height="15" rx="2" fill="#ef4444" stroke="#b91c1c" stroke-width="1.5"/>
+  <circle cx="50" cy="142" r="3" fill="#ffffff" />
+</svg>

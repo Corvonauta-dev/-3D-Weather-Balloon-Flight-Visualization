@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Weather Balloon Simulator</title>
+    <!-- Cesium JS -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    
+    <div id="ui-container">
+        <!-- Telemetry Panel -->
+        <div class="panel telemetry-panel">
+            <h2>Flight Telemetry</h2>
+            <div class="data-grid">
+                <div class="data-item">
+                    <span class="label">Time (BRT)</span>
+                    <span class="value" id="val-time">--:--:--</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Altitude</span>
+                    <span class="value" id="val-alt">0 m</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Latitude</span>
+                    <span class="value" id="val-lat">0.0000°</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Longitude</span>
+                    <span class="value" id="val-lng">0.0000°</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Speed</span>
+                    <span class="value" id="val-speed">0 km/h</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="panel controls-panel">
+            <div class="control-header">
+                <h2>Simulation Controls</h2>
+                <div class="speed-control">
+                    <label for="speed-multiplier">Speed: </label>
+                    <select id="speed-multiplier">
+                        <option value="1">1x</option>
+                        <option value="5">5x</option>
+                        <option value="10">10x</option>
+                        <option value="30">30x</option>
+                        <option value="60" selected>60x</option>
+                        <option value="120">120x</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <span id="progress-text">0%</span>
+                <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
+            </div>
+
+            <div class="buttons">
+                <button id="btn-play-pause" class="btn primary">Play</button>
+                <button id="btn-reset" class="btn">Reset</button>
+                <button id="btn-change-flight" class="btn">Load Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Selection Modal -->
+    <div id="file-modal" class="modal-overlay">
+        <div class="modal-content panel">
+            <h2>Select Flight Data</h2>
+            <p style="font-size: 0.9rem; color: #cbd5e1;">Choose a flight from your local <code>flight_data/</code> folder.</p>
+            <div id="file-list" class="file-list">
+                <div class="loading-text">Scanning for files...</div>
+            </div>
+            
+            <div class="manual-upload">
+                <p>Or upload a CSV manually:</p>
+                <input type="file" id="manual-file-input" accept=".csv">
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
