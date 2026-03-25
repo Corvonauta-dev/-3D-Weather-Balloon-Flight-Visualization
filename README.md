@@ -1,4 +1,4 @@
-# 3D Weather Balloon Flight Simulator 🎈
+# 3D Weather Balloon Flight Visualization 🎈
 
 A dynamic, interactive, and 3D web simulator for visualizing the flight and descent of weather balloons based on real telemetry data.
 
