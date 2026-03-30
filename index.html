@@ -70,20 +70,65 @@
                 <button id="btn-change-flight" class="btn">Load Data</button>
             </div>
         </div>
+
+        <!-- Landing Details Panel for Range Mode Clicks -->
+        <div id="landing-details-panel" class="panel hidden" style="position: absolute; right: 20px; top: 20px; width: 320px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">
+                <h2 id="ld-title" style="margin: 0; font-size: 1rem; color: #38bdf8; text-transform: uppercase;">Landing Data</h2>
+                <button id="btn-close-details" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; outline: none;">&times;</button>
+            </div>
+            <div class="data-grid" style="grid-template-columns: 1fr;">
+                <div class="data-item">
+                    <span class="label">Estimated Flight Time</span>
+                    <span class="value" id="ld-duration">0 min</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Launch Time</span>
+                    <span class="value" id="ld-start-time">--:--:--</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Landing Time</span>
+                    <span class="value" id="ld-end-time">--:--:--</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Launch Coordinates</span>
+                    <span class="value" id="ld-start-coords" style="font-size: 0.85rem">0, 0</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">Landing Coordinates</span>
+                    <span class="value" id="ld-end-coords" style="font-size: 0.85rem">0, 0</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- File Selection Modal -->
     <div id="file-modal" class="modal-overlay">
         <div class="modal-content panel">
-            <h2>Select Flight Data</h2>
-            <p style="font-size: 0.9rem; color: #cbd5e1;">Choose a flight from your local <code>flight_data/</code> folder.</p>
-            <div id="file-list" class="file-list">
-                <div class="loading-text">Scanning for files...</div>
+            <div class="modal-tabs">
+                <button id="tab-individual" class="tab-btn active">Single Flight</button>
+                <button id="tab-range" class="tab-btn">Range Estimation</button>
             </div>
             
-            <div class="manual-upload">
-                <p>Or upload a CSV manually:</p>
-                <input type="file" id="manual-file-input" accept=".csv">
+            <div id="content-individual">
+                <h2>Mode: Single Flight</h2>
+                <p style="font-size: 0.9rem; color: #cbd5e1;">Choose a flight from the <code>flight_data/</code> folder.</p>
+                <div id="file-list" class="file-list">
+                    <div class="loading-text">Scanning files...</div>
+                </div>
+                
+                <div class="manual-upload">
+                    <p>Or manually upload a CSV:</p>
+                    <input type="file" id="manual-file-input" accept=".csv">
+                </div>
+            </div>
+
+            <div id="content-range" style="display: none;">
+                <h2>Mode: Max Range</h2>
+                <p style="font-size: 0.9rem; color: #cbd5e1;">Choose a test group in <code>range_estimations/</code> to generate a projected landing Heatmap.</p>
+                <div id="folder-list" class="file-list">
+                    <div class="loading-text">Waiting for Python server...</div>
+                </div>
             </div>
         </div>
     </div>

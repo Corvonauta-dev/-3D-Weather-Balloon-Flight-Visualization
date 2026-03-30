@@ -67,6 +67,9 @@ let fullPathEntity = null;
 let burstEntity = null;
 let burstIndex = 0;
 
+let appMode = 'INDIVIDUAL';
+let rangeEntities = [];
+
 let isPlaying = false;
 let simulationTime = 0; // index in data array (can be fractional)
 let lastTimestamp = 0;
@@ -87,11 +90,39 @@ const btnReset = document.getElementById('btn-reset');
 // Modal Elements
 const modal = document.getElementById('file-modal');
 const fileListContainer = document.getElementById('file-list');
+const folderListContainer = document.getElementById('folder-list');
 const btnChangeFlight = document.getElementById('btn-change-flight');
 const manualFileInput = document.getElementById('manual-file-input');
 
+// Tabs
+const tabIndividual = document.getElementById('tab-individual');
+const tabRange = document.getElementById('tab-range');
+const contentIndividual = document.getElementById('content-individual');
+const contentRange = document.getElementById('content-range');
+
+if(tabIndividual) {
+    tabIndividual.addEventListener('click', () => {
+        appMode = 'INDIVIDUAL';
+        tabIndividual.classList.add('active');
+        tabRange.classList.remove('active');
+        contentIndividual.style.display = 'block';
+        contentRange.style.display = 'none';
+        scanFlights();
+    });
+
+    tabRange.addEventListener('click', () => {
+        appMode = 'RANGE';
+        tabRange.classList.add('active');
+        tabIndividual.classList.remove('active');
+        contentIndividual.style.display = 'none';
+        contentRange.style.display = 'block';
+        scanRangeFolders();
+    });
+}
+
 // Scan server directory for flights
 async function scanFlights() {
+    if(!fileListContainer) return;
     fileListContainer.innerHTML = '<div class="loading-text">Scanning flight_data/ folder...</div>';
     
     try {
@@ -133,6 +164,154 @@ async function scanFlights() {
         // Fallback or silently fail since we have manual upload input
         fileListContainer.innerHTML = '<div class="loading-text">Live directory scanning failed. Use manual upload below.</div>';
         console.warn("Could not scan directory automatically.", e);
+    }
+}
+
+async function scanRangeFolders() {
+    folderListContainer.innerHTML = '<div class="loading-text">Connecting to Python server to fetch tests...</div>';
+    try {
+        const response = await fetch('/api/explore_range_folders');
+        if (!response.ok) throw new Error("API call failed");
+        const folders = await response.json();
+        
+        if (folders.length === 0) {
+            folderListContainer.innerHTML = '<div class="loading-text">No folders found in range_estimations/</div>';
+            return;
+        }
+
+        folderListContainer.innerHTML = '';
+        folders.forEach(f => {
+            const btn = document.createElement('button');
+            btn.className = 'file-btn';
+            btn.textContent = `📁 ${f}`;
+            btn.onclick = () => loadRangeDataFromFolder(f);
+            folderListContainer.appendChild(btn);
+        });
+    } catch (e) {
+        folderListContainer.innerHTML = '<div class="loading-text" style="color:#ef4444;">Error. Make sure you ran <code>python server.py</code>!</div>';
+        console.error("Failed to scan range folders", e);
+    }
+}
+
+async function loadRangeDataFromFolder(folderName) {
+    try {
+        const response = await fetch(`/api/estimate_range/${folderName}`);
+        if (!response.ok) throw new Error("API error");
+        const data = await response.json();
+        renderRangeEstimation(data);
+        hideModal();
+    } catch (e) {
+        alert("Failed to parse range estimation. Check console.");
+        console.error(e);
+    }
+}
+
+function clearEntities() {
+    if (fullPathEntity) viewer.entities.remove(fullPathEntity);
+    if (flownPathEntity) viewer.entities.remove(flownPathEntity);
+    if (balloonEntity) viewer.entities.remove(balloonEntity);
+    if (burstEntity) viewer.entities.remove(burstEntity);
+    if (rangeEntities.length > 0) {
+        rangeEntities.forEach(e => viewer.entities.remove(e));
+        rangeEntities = [];
+    }
+}
+
+function renderRangeEstimation(data) {
+    clearEntities();
+    pauseSimulation();
+    
+    const detailsPanel = document.getElementById('landing-details-panel');
+    if(detailsPanel) detailsPanel.classList.add('hidden');
+    
+    // Toggle UI Display
+    document.querySelector('.controls-panel').style.display = 'none';
+    const telPanel = document.querySelector('.telemetry-panel');
+    telPanel.querySelector('h2').textContent = 'Max Range Estimation';
+    if(valTime && valSpeed) {
+        valTime.parentElement.style.display = 'none';
+        valSpeed.parentElement.style.display = 'none';
+        valAlt.parentElement.querySelector('.label').textContent = 'Predicted Landings';
+        valAlt.textContent = data.landing_points.length;
+        valLat.textContent = data.center_point.lat.toFixed(4) + '°';
+        valLng.textContent = data.center_point.lng.toFixed(4) + '°';
+    }
+
+    // Delete Median Trajectory Logic and replace with Launch Point Marker
+    if (data.landing_points && data.landing_points.length > 0) {
+        const launchData = data.landing_points[0];
+        const launchDot = viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(launchData.start_lng, launchData.start_lat, 0),
+            point: {
+                pixelSize: 15,
+                color: Cesium.Color.LIMEGREEN,
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 2,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
+            },
+            label: {
+                text: 'Launch',
+                font: 'bold 12pt Inter, sans-serif',
+                fillColor: Cesium.Color.WHITE,
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 3,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -15),
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
+            }
+        });
+        rangeEntities.push(launchDot);
+    }
+
+    // Draw True Heatmap Overlay (Generated by Python KDE)
+    if (data.heatmap) {
+        const heatmapEntity = viewer.entities.add({
+            rectangle: {
+                coordinates: Cesium.Rectangle.fromDegrees(
+                    data.heatmap.bounds.west,
+                    data.heatmap.bounds.south,
+                    data.heatmap.bounds.east,
+                    data.heatmap.bounds.north
+                ),
+                material: new Cesium.ImageMaterialProperty({
+                    image: data.heatmap.image,
+                    transparent: true
+                }),
+                // Ensures it renders perfectly clamped to the Esri 3D Terrain
+                clampToGround: true
+            }
+        });
+        rangeEntities.push(heatmapEntity);
+    }
+
+    // Draw Landing Point Pointers
+    if (data.landing_points) {
+        data.landing_points.forEach(pt => {
+            const dot = viewer.entities.add({
+                position: Cesium.Cartesian3.fromDegrees(pt.lng, pt.lat, pt.alt),
+                point: {
+                    pixelSize: 12,
+                    color: Cesium.Color.ORANGE,
+                    outlineColor: Cesium.Color.WHITE,
+                    outlineWidth: 2,
+                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY
+                }
+            });
+            dot.customLandingData = pt; // Attach the extracted metrics payload!
+            rangeEntities.push(dot);
+        });
+    }
+
+    // Fly to center
+    if (data.landing_points && data.landing_points.length > 0) {
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(data.center_point.lng, data.center_point.lat, 150000), // view from above
+            duration: 2.0
+        });
     }
 }
 
@@ -215,12 +394,18 @@ function parseCSV(csvText) {
 function initializeSimulation() {
     if (flightData.length === 0) return;
 
-    // Clean up old entities if swapping flights
-    if (fullPathEntity) viewer.entities.remove(fullPathEntity);
-    if (flownPathEntity) viewer.entities.remove(flownPathEntity);
-    if (balloonEntity) viewer.entities.remove(balloonEntity);
-    if (burstEntity) viewer.entities.remove(burstEntity);
+    clearEntities();
     
+    // Restore UI for Individual Mode
+    document.querySelector('.controls-panel').style.display = 'block';
+    const telPanel = document.querySelector('.telemetry-panel');
+    telPanel.querySelector('h2').textContent = 'Flight Telemetry';
+    if(valTime && valSpeed) {
+        valTime.parentElement.style.display = 'flex';
+        valSpeed.parentElement.style.display = 'flex';
+        valAlt.parentElement.querySelector('.label').textContent = 'Altitude';
+    }
+
     // Reset simulation variables
     simulationTime = 0;
     pauseSimulation();
@@ -429,7 +614,7 @@ function pauseSimulation() {
 
 function showModal() {
     modal.classList.remove('hidden');
-    scanFlights();
+    appMode === 'INDIVIDUAL' ? scanFlights() : scanRangeFolders();
 }
 
 function hideModal() {
@@ -465,6 +650,48 @@ progressSlider.addEventListener('input', (e) => {
 
 btnChangeFlight.addEventListener('click', showModal);
 
+// Map Click Event for Landing Points
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+handler.setInputAction(function (click) {
+    if (appMode !== 'RANGE') return;
+    const pickedObject = viewer.scene.pick(click.position);
+    const detailsPanel = document.getElementById('landing-details-panel');
+    if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+        const entity = pickedObject.id;
+        if (entity.customLandingData) {
+            showLandingDetails(entity.customLandingData);
+        }
+    } else {
+        if(detailsPanel) detailsPanel.classList.add('hidden');
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+document.getElementById('btn-close-details')?.addEventListener('click', () => {
+    document.getElementById('landing-details-panel')?.classList.add('hidden');
+});
+
+function showLandingDetails(data) {
+    document.getElementById('ld-title').textContent = data.flight_name || 'Simulated Flight';
+    
+    const durationMins = Math.floor(data.duration_secs / 60);
+    const durationSecs = Math.floor(data.duration_secs % 60);
+    document.getElementById('ld-duration').textContent = `${durationMins}m ${durationSecs}s`;
+    
+    // Parse the ISO strings back to browser time
+    const sDate = new Date(data.start_time);
+    const eDate = new Date(data.end_time);
+    const opts = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    
+    document.getElementById('ld-start-time').textContent = isNaN(sDate) ? data.start_time : sDate.toLocaleTimeString('pt-BR', opts);
+    document.getElementById('ld-end-time').textContent = isNaN(eDate) ? data.end_time : eDate.toLocaleTimeString('pt-BR', opts);
+    
+    document.getElementById('ld-start-coords').textContent = `${data.start_lat.toFixed(5)}°, ${data.start_lng.toFixed(5)}°`;
+    document.getElementById('ld-end-coords').textContent = `${data.lat.toFixed(5)}°, ${data.lng.toFixed(5)}°`;
+    
+    document.getElementById('landing-details-panel').classList.remove('hidden');
+}
+
 // Start app by showing modal
+showLandingDetails; // purely for keeping linter quiet if needed, showModal is called next
 showModal();
 animationFrameId = requestAnimationFrame(simulationLoop);
