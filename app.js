@@ -126,21 +126,10 @@ async function scanFlights() {
     fileListContainer.innerHTML = '<div class="loading-text">Scanning flight_data/ folder...</div>';
     
     try {
-        const response = await fetch('flight_data/');
-        if (!response.ok) throw new Error("Directory fetching not supported");
+        const response = await fetch('/api/explore_flight_data');
+        if (!response.ok) throw new Error("API call failed");
         
-        const html = await response.text();
-        
-        // Simple regex to find .csv files in href attributes outputted by Python or Live Server
-        const regex = /href="([^"]+\.csv)"/g;
-        let files = [];
-        let match;
-        while ((match = regex.exec(html)) !== null) {
-            // Check if it's not a full URL to avoid external links
-            if (!match[1].startsWith('http')) {
-                files.push(decodeURIComponent(match[1])); // Remove %20 etc
-            }
-        }
+        const files = await response.json();
         
         if (files.length === 0) {
             fileListContainer.innerHTML = '<div class="loading-text">No .csv files found in flight_data/ folder.</div>';
@@ -152,11 +141,9 @@ async function scanFlights() {
             const btn = document.createElement('button');
             btn.className = 'file-btn';
             
-            // Clean up the filename displayed (strip paths if any got matched)
-            const rawFilename = f.split('/').pop();
-            btn.textContent = rawFilename;
+            btn.textContent = f;
             
-            btn.onclick = () => loadDataFromUrl(`flight_data/${rawFilename}`);
+            btn.onclick = () => loadDataFromUrl(`flight_data/${f}`);
             fileListContainer.appendChild(btn);
         });
 
@@ -198,6 +185,7 @@ async function loadRangeDataFromFolder(folderName) {
         const response = await fetch(`/api/estimate_range/${folderName}`);
         if (!response.ok) throw new Error("API error");
         const data = await response.json();
+        data.folderName = folderName;
         renderRangeEstimation(data);
         hideModal();
     } catch (e) {
@@ -206,11 +194,15 @@ async function loadRangeDataFromFolder(folderName) {
     }
 }
 
+function clearFlightEntities() {
+    if (fullPathEntity) { viewer.entities.remove(fullPathEntity); fullPathEntity = null; }
+    if (flownPathEntity) { viewer.entities.remove(flownPathEntity); flownPathEntity = null; }
+    if (balloonEntity) { viewer.entities.remove(balloonEntity); balloonEntity = null; }
+    if (burstEntity) { viewer.entities.remove(burstEntity); burstEntity = null; }
+}
+
 function clearEntities() {
-    if (fullPathEntity) viewer.entities.remove(fullPathEntity);
-    if (flownPathEntity) viewer.entities.remove(flownPathEntity);
-    if (balloonEntity) viewer.entities.remove(balloonEntity);
-    if (burstEntity) viewer.entities.remove(burstEntity);
+    clearFlightEntities();
     if (rangeEntities.length > 0) {
         rangeEntities.forEach(e => viewer.entities.remove(e));
         rangeEntities = [];
@@ -297,11 +289,11 @@ function renderRangeEstimation(data) {
                     color: Cesium.Color.ORANGE,
                     outlineColor: Cesium.Color.WHITE,
                     outlineWidth: 2,
-                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                     disableDepthTestDistance: Number.POSITIVE_INFINITY
                 }
             });
             dot.customLandingData = pt; // Attach the extracted metrics payload!
+            dot.customLandingData.folderName = data.folderName;
             rangeEntities.push(dot);
         });
     }
@@ -391,10 +383,14 @@ function parseCSV(csvText) {
     console.log(`Loaded ${flightData.length} data points. Burst mapped at index ${burstIndex}.`);
 }
 
-function initializeSimulation() {
+function initializeSimulation(keepRangeEntities = false) {
     if (flightData.length === 0) return;
 
-    clearEntities();
+    if (keepRangeEntities) {
+        clearFlightEntities();
+    } else {
+        clearEntities();
+    }
     
     // Restore UI for Individual Mode
     document.querySelector('.controls-panel').style.display = 'block';
@@ -650,6 +646,20 @@ progressSlider.addEventListener('input', (e) => {
 
 btnChangeFlight.addEventListener('click', showModal);
 
+async function loadRangeFlight(folderName, flightName) {
+    const url = `range_estimations/${folderName}/${flightName}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("HTTP error " + response.status);
+        const text = await response.text();
+        parseCSV(text);
+        initializeSimulation(true);
+        playSimulation();
+    } catch (e) {
+        console.error("Failed to load CSV for range flight", e);
+    }
+}
+
 // Map Click Event for Landing Points
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction(function (click) {
@@ -660,6 +670,7 @@ handler.setInputAction(function (click) {
         const entity = pickedObject.id;
         if (entity.customLandingData) {
             showLandingDetails(entity.customLandingData);
+            loadRangeFlight(entity.customLandingData.folderName, entity.customLandingData.flight_name);
         }
     } else {
         if(detailsPanel) detailsPanel.classList.add('hidden');

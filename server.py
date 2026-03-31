@@ -18,6 +18,16 @@ def index():
 def send_static(path):
     return send_from_directory('.', path)
 
+# Endpoint for the front-end to discover single flights
+@app.route('/api/explore_flight_data')
+def list_flights():
+    base_dir = os.path.join(os.path.dirname(__file__), 'flight_data')
+    if not os.path.exists(base_dir):
+        return jsonify([])
+    # Retrieve only csv files
+    files = [f.name for f in os.scandir(base_dir) if f.is_file() and f.name.lower().endswith('.csv')]
+    return jsonify(files)
+
 # Endpoint for the front-end to discover existing test folders
 @app.route('/api/explore_range_folders')
 def list_folders():
@@ -52,7 +62,7 @@ def estimate_range(folder_name):
             
             # Explicitly convert the first column to DATETIME
             col_time = df.columns[0]
-            df[col_time] = pd.to_datetime(df[col_time], errors='coerce')
+            df[col_time] = pd.to_datetime(df[col_time], format='mixed', errors='coerce')
             df.dropna(subset=[col_time], inplace=True)
             
             col_lat = df.columns[1]
