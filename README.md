@@ -14,6 +14,26 @@ This project renders the entire trajectory of a weather balloon using the **Cesi
 - 🎛️ **Advanced Controls**: Accelerate the time up to 120x, freely drag and rotate the camera using the right mouse button, or monitor the real-time numbers via the telemetry panel using a "Glassmorphism" design.
 - 🕰️ **Automatic Timezone Correction**: All telemetry times are automatically adjusted from their origins (UTC) to Brasília Time (BRT).
 
+## Execution Modes
+
+This simulator comes equipped with two distinct runtime mechanisms for rendering balloon flight data:
+
+### 1. Single Flight Mode
+In this mode, the system animates a single weather balloon flight dynamically over a 3D globe.
+- **Flight Visualization**: The precise trajectory is plotted point-by-point corresponding to realtime speed settings (accelerable up to 120x).
+- **Parachute Transition**: The system dynamically monitors telemetry and alters the tracker model to a parachute immediately at burst altitude.
+- **Live Telemetry**: A futuristic glassmorphism "Flight Telemetry" panel is constantly updated with key metrics (Time, Altitude, Latitude, Longitude, and Speed).
+
+![Single Flight Mode](assets/single_flight_mode.gif)
+
+### 2. Range Estimation (Heatmap) Mode
+Instead of focusing on a single path, this analytical mode processes thousands of individual landings projected by an atmospheric wind model.
+- **Risk Assessment Map**: Shows clusters of balloon landings, allowing you to establish a secure recovery zone visually.
+- **Interactive Landings**: Red markers indicate potential landing zones. You can visually explore each alternative scenario via the Map interface.
+- **Seamless Flight Transitions**: Clicking any marker automatically opens the "Landing Data" interface, showing specific metrics. It immediately starts loading and running the 3D trajectory of that precise flight path instantly.
+
+![Range Estimation Mode](assets/range_estimation_mode.gif)
+
 ## Data Note
 
 > [!IMPORTANT]
